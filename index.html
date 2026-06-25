@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>宏观风险判断 · 公开研究日志</title>
+<meta name="description" content="一个人维护的全球宏观风险判断清单,经多角色对抗式审计后得到可证伪预测与命中记录。仅供研究交流,非投资建议。">
+<style>
+  :root{
+    --bg:#faf8f3; --card:#fff; --ink:#1f2328; --muted:#6b7280; --line:#e6e1d6;
+    --accent:#9a3b26; --accent-soft:#f3e9e4; --chip:#eef1f4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 18px 80px}
+  header h1{font-size:1.6rem;margin:.2em 0 .1em}
+  header .sub{color:var(--muted);margin:0 0 .6em}
+  .disclaimer{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;font-size:.85rem;color:#7a4030;margin:14px 0 8px}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 2px;font-size:.85rem;color:var(--muted)}
+  .chip{background:var(--chip);border-radius:20px;padding:3px 12px;white-space:nowrap}
+  nav{position:sticky;top:0;background:var(--bg);padding:12px 0;border-bottom:1px solid var(--line);
+    display:flex;gap:8px;flex-wrap:wrap;z-index:5;margin-top:14px}
+  nav a{text-decoration:none;color:var(--ink);font-size:.9rem;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card)}
+  nav a:hover{border-color:var(--accent);color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:22px 0;scroll-margin-top:64px}
+  section>h2{margin-top:0;font-size:1.2rem;border-left:4px solid var(--accent);padding-left:10px}
+  .md table{border-collapse:collapse;width:100%;font-size:.9rem;margin:.6em 0;display:block;overflow-x:auto}
+  .md th,.md td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  .md th{background:#f6f3ec}
+  .md tr:nth-child(even) td{background:#fbfaf6}
+  .md h2{font-size:1.05rem;margin:1.2em 0 .3em;border-top:1px solid var(--line);padding-top:.8em}
+  .md h2:first-child{border-top:none;padding-top:0}
+  .md blockquote{color:var(--muted);border-left:3px solid var(--line);margin:.5em 0;padding:.1em 12px}
+  .md code{background:#f1eee7;padding:1px 5px;border-radius:4px;font-size:.85em}
+  .loading{color:var(--muted);font-style:italic}
+  footer{color:var(--muted);font-size:.82rem;margin-top:30px;text-align:center;line-height:1.8}
+  footer a{color:var(--accent)}
+  @media(max-width:520px){.wrap{padding:18px 12px 60px}header h1{font-size:1.35rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>宏观风险判断 · 公开研究日志</h1>
+    <p class="sub">一个人维护的全球宏观风险判断清单,经一组目标函数不同的 AI 角色对抗式审计后,逼出每条判断的可证伪点,再用现实结果验证、累积成命中记录。</p>
+    <div class="meta">
+      <span class="chip" id="asof">数据截至:加载中…</span>
+      <span class="chip" id="count">判断条数:—</span>
+    </div>
+    <div class="disclaimer">本仓库内容由上游私有系统单向同步而来,<b>不接受 Pull Request</b>。所有内容<b>仅供研究与思考交流,不构成投资建议</b>,作者不是财务顾问。</div>
+  </header>
+
+  <nav>
+    <a href="#snapshot">当前清单</a>
+    <a href="#log">变化趋势</a>
+    <a href="#scorecard">校准记分卡</a>
+    <a href="methodology.md">方法论</a>
+  </nav>
+
+  <section id="snapshot">
+    <h2>当前判断清单(滚动更新)</h2>
+    <div class="md" id="snapshot-body"><p class="loading">加载 snapshot.md …</p></div>
+  </section>
+
+  <section id="log">
+    <h2>变化趋势 · 滚动 LOG(只增不删)</h2>
+    <div class="md" id="log-body"><p class="loading">加载 log.md …</p></div>
+  </section>
+
+  <section id="scorecard">
+    <h2>校准记分卡(可证伪预测 + 命中记录)</h2>
+    <div id="scorecard-body"><p class="loading">加载 scorecard.json …</p></div>
+  </section>
+
+  <footer>
+    判断由人持有并维护;AI 角色只负责拷打、不替人改判断;验证由人与现实完成。<br>
+    源:<a href="https://github.com/pjh0203/macro-public">github.com/pjh0203/macro-public</a>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const bust = "?t=" + Date.now();   // 防缓存,确保每次看到最新
+async function loadMd(file, elId){
+  try{
+    const r = await fetch(file + bust); if(!r.ok) throw new Error(r.status);
+    const txt = await r.text();
+    document.getElementById(elId).innerHTML = marked.parse(txt);
+    return txt;
+  }catch(e){ document.getElementById(elId).innerHTML = '<p class="loading">未能加载 '+file+'('+e.message+')</p>'; return ""; }
+}
+function fmtOutcome(o){ return ({open:"⏳ 待验证",correct:"✅ 命中",wrong:"❌ 落空",partial:"◐ 部分",stale:"⊘ 失效"})[o] || o || "—"; }
+async function loadScorecard(){
+  const el = document.getElementById("scorecard-body");
+  try{
+    const r = await fetch("scorecard.json" + bust); if(!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const cx = d.cruxes || [];
+    if(!cx.length){ el.innerHTML = '<p class="loading">暂无标记为公开的预测。每条 crux 默认不公开,作者会挑选可公开的逐步放出。</p>'; return; }
+    let h = '<div class="md"><table><thead><tr><th>判断</th><th>证伪点</th><th>盯什么</th><th>验证时点</th><th>结果</th></tr></thead><tbody>';
+    for(const c of cx){
+      h += `<tr><td>${esc(c.judgment)}</td><td>${esc(c.falsification)}</td><td>${esc(c.observable)}</td><td>${esc(c.verify_by)}</td><td>${fmtOutcome(c.outcome)}</td></tr>`;
+    }
+    el.innerHTML = h + "</tbody></table></div>";
+  }catch(e){ el.innerHTML = '<p class="loading">未能加载 scorecard.json('+e.message+')</p>'; }
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+(async()=>{
+  const snap = await loadMd("snapshot.md", "snapshot-body");
+  await loadMd("log.md", "log-body");
+  await loadScorecard();
+  const m = snap.match(/数据截至[::]\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+  if(m) document.getElementById("asof").textContent = "数据截至:" + m[1];
+  const rows = (snap.match(/^\|\s*\d+\s*\|/gm) || []).length;
+  if(rows) document.getElementById("count").textContent = "判断条数:" + rows;
+})();
+</script>
+</body>
+</html>
