@@ -9,6 +9,8 @@
   :root{
     --bg:#faf8f3; --card:#fff; --ink:#1f2328; --muted:#6b7280; --line:#e6e1d6;
     --accent:#9a3b26; --accent-soft:#f3e9e4; --chip:#eef1f4;
+    --hot:#9a3b26; --warm:#c0883a; --cool:#e3dccb;
+    --hit:#4a7c59; --part:#c9962f; --miss:#9a3b26; --pending:#d7cfbb;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -26,6 +28,7 @@
   nav a:hover{border-color:var(--accent);color:var(--accent)}
   section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:22px 0;scroll-margin-top:64px}
   section>h2{margin-top:0;font-size:1.2rem;border-left:4px solid var(--accent);padding-left:10px}
+  .hint{color:var(--muted);font-size:.85rem;margin:.2em 0 1em}
   .md table{border-collapse:collapse;width:100%;font-size:.9rem;margin:.6em 0;display:block;overflow-x:auto}
   .md th,.md td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
   .md th{background:#f6f3ec}
@@ -35,9 +38,25 @@
   .md blockquote{color:var(--muted);border-left:3px solid var(--line);margin:.5em 0;padding:.1em 12px}
   .md code{background:#f1eee7;padding:1px 5px;border-radius:4px;font-size:.85em}
   .loading{color:var(--muted);font-style:italic}
+  /* KPI 记分卡 */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:4px 0 14px}
+  .kpi{background:#fbfaf6;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .kpi .lab{font-size:.8rem;color:var(--muted)}
+  .kpi .val{font-size:1.6rem;font-weight:600;line-height:1.2}
+  .ratebar{display:flex;height:18px;border-radius:6px;overflow:hidden;margin:2px 0 8px;background:var(--cool)}
+  .lgnd{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
+  /* 热力图 */
+  .heatscroll{overflow-x:auto;padding-bottom:6px}
+  .heatgrid{display:grid;gap:5px;align-items:center;min-width:max-content}
+  .hcell{width:24px;height:22px;border-radius:4px}
+  .hname{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+  .hbadge{font-size:.75rem;padding:2px 9px;border-radius:11px;white-space:nowrap}
+  .hbadge.hot{color:#7a2e1c;background:var(--accent-soft)}
+  .hbadge.cool{color:var(--muted)}
   footer{color:var(--muted);font-size:.82rem;margin-top:30px;text-align:center;line-height:1.8}
   footer a{color:var(--accent)}
-  @media(max-width:520px){.wrap{padding:18px 12px 60px}header h1{font-size:1.35rem}}
+  @media(max-width:520px){.wrap{padding:18px 12px 60px}header h1{font-size:1.35rem}.hname{max-width:120px}}
 </style>
 </head>
 <body>
@@ -54,8 +73,9 @@
 
   <nav>
     <a href="#snapshot">当前清单</a>
-    <a href="#log">变化趋势</a>
+    <a href="#heatmap">翻动热力图</a>
     <a href="#scorecard">校准记分卡</a>
+    <a href="#log">变化趋势</a>
     <a href="methodology.md">方法论</a>
   </nav>
 
@@ -64,14 +84,26 @@
     <div class="md" id="snapshot-body"><p class="loading">加载 snapshot.md …</p></div>
   </section>
 
-  <section id="log">
-    <h2>变化趋势 · 滚动 LOG(只增不删)</h2>
-    <div class="md" id="log-body"><p class="loading">加载 log.md …</p></div>
+  <section id="heatmap">
+    <h2>判断翻动热力图</h2>
+    <p class="hint">每条判断在历次回流里的变动。<b>越红改得越频繁</b> = 信心越该打折;从未变动的最稳。按翻动次数排序。</p>
+    <div class="lgnd">
+      <span><span class="sw" style="background:var(--hot)"></span>改立场</span>
+      <span><span class="sw" style="background:var(--warm)"></span>加监测</span>
+      <span><span class="sw" style="background:var(--cool)"></span>未变</span>
+    </div>
+    <div class="heatscroll"><div id="heatmap-body"><p class="loading">解析 log.md …</p></div></div>
   </section>
 
   <section id="scorecard">
     <h2>校准记分卡(可证伪预测 + 命中记录)</h2>
+    <div id="scorecard-kpi"></div>
     <div id="scorecard-body"><p class="loading">加载 scorecard.json …</p></div>
+  </section>
+
+  <section id="log">
+    <h2>变化趋势 · 滚动 LOG(只增不删)</h2>
+    <div class="md" id="log-body"><p class="loading">加载 log.md …</p></div>
   </section>
 
   <footer>
@@ -82,7 +114,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script>
-const bust = "?t=" + Date.now();   // 防缓存,确保每次看到最新
+const bust = "?t=" + Date.now();
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 async function loadMd(file, elId){
   try{
     const r = await fetch(file + bust); if(!r.ok) throw new Error(r.status);
@@ -91,26 +124,110 @@ async function loadMd(file, elId){
     return txt;
   }catch(e){ document.getElementById(elId).innerHTML = '<p class="loading">未能加载 '+file+'('+e.message+')</p>'; return ""; }
 }
+
+/* ---- 当前清单:解析编号 + 判断名(行数据驱动,不写死条数) ---- */
+function parseJudgments(snap){
+  const out=[];
+  snap.split("\n").forEach(l=>{
+    const m=l.match(/^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|/);
+    if(m) out.push({ num:m[1], name:m[2].trim() });
+  });
+  return out;
+}
+
+/* ---- log.md → 每期每条的状态(c=改立场 / m=加监测 / n=未变) ----
+   宽松解析,兼容历史散文期与 apply-writeback 规整期:
+   一行内 #N 的归类优先级:含"未变" → n;含"加监测/立场不变" → m;以 - 或 * 起头的列表行 → c。*/
+function parseLogStates(logtxt){
+  const blocks=[]; let cur=null;
+  logtxt.split("\n").forEach(line=>{
+    const h=line.match(/^##\s*(\d{4}-\d{2}-\d{2})/);
+    if(h){ cur={ date:h[1], st:{} }; blocks.push(cur); return; }
+    if(!cur) return;
+    const strip=s=>s.replace(/[(（【][^)）】]*[)）】]/g,"");  // 去括号描述,避免括号里 cross-ref 的编号污染列举
+    if(/未变/.test(line)){ [...strip(line).matchAll(/#(\d+)/g)].forEach(m=>{ if(!(m[1] in cur.st)) cur.st[m[1]]="n"; }); return; }
+    if(/加监测|立场不变/.test(line)){ [...strip(line).matchAll(/#(\d+)/g)].forEach(m=>cur.st[m[1]]="m"); return; }
+    const b=line.match(/^\s*[-*]\s+\*{0,2}#(\d+)(?:\s*\/\s*#?(\d+))?/);  // 只取 bullet 行首主语,避免描述里 cross-ref 的编号被误标
+    if(b){ cur.st[b[1]]="c"; if(b[2]) cur.st[b[2]]="c"; }
+  });
+  return blocks; // 文件内顺序 = 新→旧
+}
+
+function buildHeatmap(snap, logtxt){
+  const el=document.getElementById("heatmap-body");
+  const judg=parseJudgments(snap);
+  const blocks=parseLogStates(logtxt);
+  if(!judg.length || !blocks.length){ el.innerHTML='<p class="loading">暂无可解析的清单或变化记录。</p>'; return; }
+  const cols=blocks.slice(0,10).reverse();           // 取最近 10 期,老→新(左→右)
+  const fill={ c:"var(--hot)", m:"var(--warm)", n:"var(--cool)" };
+  const word={ c:"改立场", m:"加监测", n:"未变" };
+  const rows=judg.map(j=>{
+    const seq=cols.map(b=> b.st[j.num] || "n");
+    const flips=seq.filter(x=>x==="c").length;
+    return { ...j, seq, flips };
+  }).sort((a,b)=> b.flips-a.flips || (+a.num)-(+b.num));
+  const C=cols.length;
+  let h='<div class="heatgrid" style="grid-template-columns:180px repeat('+C+',24px) auto">';
+  h+='<div></div>'+cols.map(b=>'<div style="font-size:.7rem;color:var(--muted);text-align:center;writing-mode:vertical-rl;transform:rotate(180deg);height:46px;margin:0 auto">'+b.date.slice(5)+'</div>').join('')+'<div></div>';
+  for(const r of rows){
+    h+='<div class="hname" title="'+esc(r.name)+'">#'+r.num+' '+esc(r.name)+'</div>';
+    h+=r.seq.map((x,i)=>'<div class="hcell" title="'+cols[i].date+': '+word[x]+'" style="background:'+fill[x]+'"></div>').join('');
+    const badge = r.flips>=2
+      ? '<span class="hbadge hot">翻动 '+r.flips+' 次 · 信心打折</span>'
+      : '<span class="hbadge cool">'+(r.flips? '变动 '+r.flips+' 次':'稳定')+'</span>';
+    h+='<div style="padding-left:8px">'+badge+'</div>';
+  }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+/* ---- 校准记分卡:KPI + 命中条 + 明细表 ---- */
 function fmtOutcome(o){ return ({open:"⏳ 待验证",correct:"✅ 命中",wrong:"❌ 落空",partial:"◐ 部分",stale:"⊘ 失效"})[o] || o || "—"; }
 async function loadScorecard(){
-  const el = document.getElementById("scorecard-body");
+  const kpi=document.getElementById("scorecard-kpi");
+  const el=document.getElementById("scorecard-body");
   try{
-    const r = await fetch("scorecard.json" + bust); if(!r.ok) throw new Error(r.status);
-    const d = await r.json();
-    const cx = d.cruxes || [];
-    if(!cx.length){ el.innerHTML = '<p class="loading">暂无标记为公开的预测。每条 crux 默认不公开,作者会挑选可公开的逐步放出。</p>'; return; }
-    let h = '<div class="md"><table><thead><tr><th>判断</th><th>证伪点</th><th>盯什么</th><th>验证时点</th><th>结果</th></tr></thead><tbody>';
+    const r=await fetch("scorecard.json"+bust); if(!r.ok) throw new Error(r.status);
+    const d=await r.json();
+    const cx=d.cruxes||[];
+    const cnt=o=>cx.filter(c=>c.outcome===o).length;
+    const verified=cnt("correct")+cnt("wrong")+cnt("partial");
+    const rate= verified ? Math.round(100*cnt("correct")/verified) : null;
+    kpi.innerHTML =
+      '<div class="kpis">'+
+        kpiCard("公开预测", cx.length)+
+        kpiCard("已验证", verified)+
+        kpiCard("命中率", rate==null?"—":rate+"%")+
+        kpiCard("待验证", cnt("open"))+
+      '</div>'+
+      (verified
+        ? '<div class="ratebar">'+
+            bar(cnt("correct"),"var(--hit)","命中")+bar(cnt("partial"),"var(--part)","部分")+bar(cnt("wrong"),"var(--miss)","落空")+
+          '</div>'+
+          '<div class="lgnd">'+
+            sw("var(--hit)","命中 "+cnt("correct"))+sw("var(--part)","部分 "+cnt("partial"))+
+            sw("var(--miss)","落空 "+cnt("wrong"))+sw("var(--pending)","待验证 "+cnt("open"))+
+          '</div>'
+        : '<p class="hint">命中条将在有预测被现实判定后出现(当前样本积累中)。</p>');
+    if(!cx.length){ el.innerHTML='<p class="loading">暂无标记为公开的预测。每条 crux 默认不公开,作者会挑选可公开的逐步放出。</p>'; return; }
+    let html='<div class="md"><table><thead><tr><th>判断</th><th>证伪点</th><th>盯什么</th><th>验证时点</th><th>结果</th></tr></thead><tbody>';
     for(const c of cx){
-      h += `<tr><td>${esc(c.judgment)}</td><td>${esc(c.falsification)}</td><td>${esc(c.observable)}</td><td>${esc(c.verify_by)}</td><td>${fmtOutcome(c.outcome)}</td></tr>`;
+      html+='<tr><td>'+esc(c.judgment)+'</td><td>'+esc(c.falsification)+'</td><td>'+esc(c.observable)+'</td><td>'+esc(c.verify_by)+'</td><td>'+fmtOutcome(c.outcome)+'</td></tr>';
     }
-    el.innerHTML = h + "</tbody></table></div>";
-  }catch(e){ el.innerHTML = '<p class="loading">未能加载 scorecard.json('+e.message+')</p>'; }
+    el.innerHTML=html+"</tbody></table></div>";
+  }catch(e){
+    kpi.innerHTML="";
+    el.innerHTML='<p class="loading">未能加载 scorecard.json('+e.message+')</p>';
+  }
 }
-function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function kpiCard(lab,val){ return '<div class="kpi"><div class="lab">'+lab+'</div><div class="val">'+val+'</div></div>'; }
+function bar(n,color,label){ return n? '<div title="'+label+' '+n+'" style="flex:'+n+';background:'+color+'"></div>':''; }
+function sw(color,label){ return '<span><span class="sw" style="background:'+color+'"></span>'+label+'</span>'; }
 
 (async()=>{
   const snap = await loadMd("snapshot.md", "snapshot-body");
-  await loadMd("log.md", "log-body");
+  const logtxt = await loadMd("log.md", "log-body");
+  buildHeatmap(snap, logtxt);
   await loadScorecard();
   const m = snap.match(/数据截至[::]\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/);
   if(m) document.getElementById("asof").textContent = "数据截至:" + m[1];
